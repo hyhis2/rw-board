@@ -253,10 +253,18 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);}
 .board-overlay-clock{position:fixed;top:14px;right:20px;z-index:200;text-align:right;line-height:1;pointer-events:none;}
 .board-overlay-clock .oc-time{font-family:var(--font-header);font-size:1.6vw;color:var(--brown);line-height:1;}
 .board-overlay-clock .oc-date{font-family:var(--font-body);font-size:0.72vw;color:var(--muted);margin-top:1px;}
-/* 전광판 모드: nav 숨기기 */
+/* 전광판 모드: nav 숨기고 관리자 버튼만 우하단에 표시 */
 body.board-mode .nav{background:transparent;border:none;height:0;padding:0;pointer-events:none;overflow:hidden;}
 body.board-mode .page{padding-top:0;}
 body.board-mode .board-container{height:100vh;}
+body.board-mode #btn-admin{
+  position:fixed;bottom:12px;right:12px;z-index:9999;
+  pointer-events:auto;opacity:0.25;font-size:0.7vw;padding:4px 10px;
+  background:rgba(0,0,0,0.3);color:#fff;border:none;border-radius:20px;cursor:pointer;
+}
+body.board-mode #btn-admin:hover{opacity:1;}
+body.board-mode #btn-board{display:none;}
+body.board-mode .nav-logo{display:none;}
 
 /* 인디케이터 & 진행바 */
 .slide-indicators{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:7px;z-index:50;}
