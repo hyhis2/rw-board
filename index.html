@@ -1094,6 +1094,17 @@ function saveBulkMeal(){
 // 오늘 날짜에 맞는 식단 자동 로드
 function autoLoadTodayMeal(){
   const today = todayKey();
+  // localStorage와 Firebase 모두에서 스케줄 읽기
+  db.ref('rw/meal_schedule').once('value').then(snap=>{
+    const schedule = snap.val() || load('meal_schedule');
+    const arr = Array.isArray(schedule) ? schedule : Object.values(schedule||{});
+    const todayMeal = arr.find(d=>d.date===today);
+    if(todayMeal){
+      save('meal',[{items:todayMeal.items}]);
+      renderBoardDisplay();
+    }
+  });
+  // 아래는 기존 localStorage fallback
   const schedule = load('meal_schedule');
   const todayMeal = schedule.find(d=>d.date===today);
   if(todayMeal){
