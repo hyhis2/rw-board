@@ -149,12 +149,12 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);}
 }
 .award-info-title{
   font-family:var(--font-header);
-  font-size:1.3vw; color:#555;
+  font-size:var(--fs-award-title, 1.3vw); color:#555;
   margin-bottom:0.25vw;
 }
 .award-info-name{
   font-family:var(--font-card);
-  font-size:1.8vw; color:#333; font-weight:700;
+  font-size:var(--fs-award-name, 1.8vw); color:#333; font-weight:700;
 }
 .award-info-desc{
   font-family:var(--font-body);
@@ -601,6 +601,34 @@ body.board-mode .nav-logo{display:none;}
     </div>
 
     <div class="admin-section">
+      <div class="admin-section-title">🔡 글씨 크기 조정</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">슬라이더로 조정하면 전광판에 실시간 반영됩니다.</div>
+      <div class="form-row" style="flex-wrap:wrap;gap:16px;">
+        <div class="form-group" style="min-width:200px;">
+          <label>생일자 이름</label>
+          <input type="range" id="fs-birthday-name" min="0.4" max="2" step="0.05" value="0.75" oninput="applyFontSize('birthday-name',this.value)">
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">현재: <span id="fs-birthday-name-val">0.75</span>vw</div>
+        </div>
+        <div class="form-group" style="min-width:200px;">
+          <label>생일자 날짜</label>
+          <input type="range" id="fs-birthday-date" min="0.4" max="2" step="0.05" value="0.8" oninput="applyFontSize('birthday-date',this.value)">
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">현재: <span id="fs-birthday-date-val">0.8</span>vw</div>
+        </div>
+        <div class="form-group" style="min-width:200px;">
+          <label>수상자 이름</label>
+          <input type="range" id="fs-award-name" min="0.5" max="3" step="0.05" value="1.8" oninput="applyFontSize('award-name',this.value)">
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">현재: <span id="fs-award-name-val">1.8</span>vw</div>
+        </div>
+        <div class="form-group" style="min-width:200px;">
+          <label>수상자 직책(AI Specialist 등)</label>
+          <input type="range" id="fs-award-title" min="0.4" max="2" step="0.05" value="1.3" oninput="applyFontSize('award-title',this.value)">
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">현재: <span id="fs-award-title-val">1.3</span>vw</div>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="saveFontSizes()">💾 글씨 크기 저장</button>
+    </div>
+
+    <div class="admin-section">
       <div class="admin-section-title">⏱️ 슬라이드 전환 속도</div>
       <div class="form-row" style="align-items:center;">
         <div class="form-group" style="max-width:180px;">
@@ -694,6 +722,40 @@ function applyFont(role, value){
   const p = document.getElementById('preview-'+role);
   if(p) p.style.fontFamily = value;
 }
+function applyFontSize(key, val){
+  val = parseFloat(val).toFixed(2);
+  document.documentElement.style.setProperty('--fs-'+key, val+'vw');
+  const el = document.getElementById('fs-'+key+'-val');
+  if(el) el.textContent = val;
+}
+
+function saveFontSizes(){
+  const keys = ['birthday-name','birthday-date','award-name','award-title'];
+  const sizes = {};
+  keys.forEach(k=>{
+    const el = document.getElementById('fs-'+k);
+    if(el) sizes[k] = parseFloat(el.value).toFixed(2);
+  });
+  lss('rw_fontsizes', JSON.stringify(sizes));
+  db.ref('rw/fontsizes').set(sizes);
+  alert('저장되었습니다!');
+}
+
+function loadFontSizes(){
+  db.ref('rw/fontsizes').once('value').then(snap=>{
+    const sizes = snap.val() || JSON.parse(ls('rw_fontsizes')||'{}');
+    const defaults = {'birthday-name':'0.75','birthday-date':'0.80','award-name':'1.80','award-title':'1.30'};
+    Object.keys(defaults).forEach(k=>{
+      const val = sizes[k] || defaults[k];
+      document.documentElement.style.setProperty('--fs-'+k, val+'vw');
+      const slider = document.getElementById('fs-'+k);
+      if(slider) slider.value = val;
+      const display = document.getElementById('fs-'+k+'-val');
+      if(display) display.textContent = val;
+    });
+  });
+}
+
 function saveFonts(){
   ['header','body','card'].forEach(r=>{
     const v = document.getElementById('font-'+r).value;
@@ -751,7 +813,7 @@ function showPage(page){
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById(page).classList.add('active');
   document.getElementById('btn-'+page).classList.add('active');
-  if(page==='admin'){ renderAllLists(); loadFonts(); loadLabels(); const dur=parseInt(ls('rw_duration'))||8; document.getElementById('slide-duration').value=dur; document.getElementById('duration-display').textContent=dur; }
+  if(page==='admin'){ renderAllLists(); loadFonts(); loadLabels(); loadFontSizes(); const dur=parseInt(ls('rw_duration'))||8; document.getElementById('slide-duration').value=dur; document.getElementById('duration-display').textContent=dur; }
   if(page==='board'){
     document.body.classList.add('board-mode');
     renderBoard();
@@ -1558,7 +1620,7 @@ loadFonts(); loadLabels();
 
 autoLoadTodayMeal();  // 오늘 날짜 식단 자동 로드
 
-renderBoard(); setupSlides(); showPage('board');
+renderBoard(); setupSlides(); showPage('board'); loadFontSizes();
 
 // 1분마다 자동으로 최신 데이터 새로고침 (다른 모니터 동기화용)
 setInterval(function(){
