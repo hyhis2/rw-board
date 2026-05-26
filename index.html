@@ -220,6 +220,22 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);}
 }
 .game-empty{color:#888;font-size:1.5vw;}
 
+.slide-images{background:#000;}
+.images-media{
+  position:absolute;inset:0;
+  background:#000;overflow:hidden;
+}
+.images-media img{
+  position:absolute;inset:0;
+  width:100%;height:100%;object-fit:cover;
+  opacity:0;transition:opacity 0.6s ease-in-out;
+}
+.images-media img.active{opacity:1;}
+.images-empty{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  color:#888;font-size:1.5vw;
+}
+
 .slide-notice .slide-bg{
   background-image:var(--bg-notice);
   background-position:center center;
@@ -416,6 +432,11 @@ body.board-mode .nav-logo{display:none;}
       <div class="game-media" id="game-media"></div>
     </div>
 
+    <!-- 이미지 -->
+    <div class="slide slide-images" id="slide-images">
+      <div class="images-media" id="images-media"></div>
+    </div>
+
   </div>
 
   <div class="slide-indicators" id="indicators"></div>
@@ -580,6 +601,36 @@ body.board-mode .nav-logo{display:none;}
       </div>
       <button class="btn btn-primary" onclick="saveGame()">💾 저장</button>
       <button class="btn btn-sm btn-danger" onclick="clearGameVideo()" style="margin-left:8px;">동영상 삭제</button>
+    </div>
+
+    <div class="admin-section">
+      <div class="admin-section-title">🖼️ 이미지 슬라이드</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">게임/회사 이미지를 등록하면 화면에 꽉 채워서 순서대로 보여줍니다. 각 이미지마다 표시 시간을 설정할 수 있어요.</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>이미지 추가 (여러 장 선택 가능)</label>
+          <input type="file" id="img-files" accept="image/*" multiple onchange="uploadImages(this)">
+          <div id="img-upload-status" style="font-size:11px;color:var(--muted);margin-top:4px;"></div>
+        </div>
+        <div class="form-group" style="max-width:160px;">
+          <label>새 이미지 기본 시간(초)</label>
+          <input type="number" id="img-default-duration" value="5" min="1" max="60">
+        </div>
+      </div>
+      <div class="item-list" id="images-list"></div>
+    </div>
+
+    <div class="admin-section">
+      <div class="admin-section-title">🎚️ 슬라이드 표시 ON/OFF</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">전광판 자동 순환에 포함할 슬라이드를 선택하세요.</div>
+      <div class="form-row" style="flex-wrap:wrap;gap:12px;">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="t-slide-birthday" onchange="saveToggles()"> 🎂 생일자</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="t-slide-award" onchange="saveToggles()"> 🏆 수상자</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="t-slide-meal" onchange="saveToggles()"> 🍱 급식 (오전 8시~오후 3시만)</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="t-slide-notice" onchange="saveToggles()"> 📢 공지사항</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="t-slide-game" onchange="saveToggles()"> 🎮 게임 영상</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="t-slide-images" onchange="saveToggles()"> 🖼️ 이미지 슬라이드</label>
+      </div>
     </div>
   </div>
 
@@ -773,6 +824,111 @@ document.documentElement.style.setProperty('--bg-award',    `url(${BG.award})`);
 const DEFAULT_PW = "123";
 let ADMIN_PW = ls('rw_admin_pw') || DEFAULT_PW;
 let adminUnlocked = false, pickerMode = null, pickerSelected = null;
+
+// ============ 이미지 슬라이드 ============
+function renderImagesList(){
+  const list = JSON.parse(ls('rw_images')||'[]');
+  const el = document.getElementById('images-list');
+  if(!el) return;
+  if(!list.length){
+    el.innerHTML = '<div style="padding:14px;color:var(--muted);font-size:13px;text-align:center;">등록된 이미지가 없습니다.</div>';
+    return;
+  }
+  el.innerHTML = list.map((im,i)=>`
+    <div class="item-row" style="display:flex;align-items:center;gap:12px;padding:10px;border-bottom:1px solid var(--peach);">
+      <img src="${im.src}" style="width:80px;height:50px;object-fit:cover;border-radius:6px;background:#f0f0f0;">
+      <div style="flex:1;font-size:13px;color:var(--muted);">${im.name||'이미지'+(i+1)}</div>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <input type="number" value="${im.duration||5}" min="1" max="60" style="width:60px;padding:4px;border:1px solid var(--peach);border-radius:6px;" onchange="updateImageDuration(${i}, this.value)">
+        <span style="font-size:12px;color:var(--muted);">초</span>
+      </div>
+      <button class="btn btn-sm" onclick="moveImage(${i},-1)" ${i===0?'disabled':''}>↑</button>
+      <button class="btn btn-sm" onclick="moveImage(${i},1)" ${i===list.length-1?'disabled':''}>↓</button>
+      <button class="btn btn-sm btn-danger" onclick="deleteImage(${i})">삭제</button>
+    </div>
+  `).join('');
+}
+
+function uploadImages(input){
+  const files = Array.from(input.files);
+  if(!files.length) return;
+  const defaultDur = parseInt(document.getElementById('img-default-duration').value) || 5;
+  const list = JSON.parse(ls('rw_images')||'[]');
+  let loaded = 0;
+  files.forEach(file=>{
+    if(file.size > 2*1024*1024){
+      alert(file.name+': 파일이 너무 큽니다! 2MB 이하 권장');
+      loaded++;
+      if(loaded===files.length){ saveImages(list); input.value=''; }
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+      list.push({src: e.target.result, name: file.name, duration: defaultDur});
+      loaded++;
+      document.getElementById('img-upload-status').textContent = `처리 중... (${loaded}/${files.length})`;
+      if(loaded===files.length){
+        saveImages(list);
+        input.value='';
+        document.getElementById('img-upload-status').textContent = '✓ 업로드 완료';
+        setTimeout(()=>{document.getElementById('img-upload-status').textContent='';}, 2000);
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function saveImages(list){
+  lss('rw_images', JSON.stringify(list));
+  db.ref('rw/images').set(list);
+  renderImagesList();
+}
+
+function deleteImage(i){
+  if(!confirm('정말 삭제하시겠어요?')) return;
+  const list = JSON.parse(ls('rw_images')||'[]');
+  list.splice(i,1);
+  saveImages(list);
+}
+
+function moveImage(i, dir){
+  const list = JSON.parse(ls('rw_images')||'[]');
+  const j = i+dir;
+  if(j<0||j>=list.length) return;
+  [list[i],list[j]] = [list[j],list[i]];
+  saveImages(list);
+}
+
+function updateImageDuration(i, val){
+  const list = JSON.parse(ls('rw_images')||'[]');
+  if(!list[i]) return;
+  list[i].duration = parseInt(val) || 5;
+  saveImages(list);
+}
+
+// ============ 슬라이드 ON/OFF 토글 ============
+function loadToggles(){
+  db.ref('rw/toggles').once('value').then(snap=>{
+    const t = snap.val() || JSON.parse(ls('rw_toggles')||'{}');
+    ['slide-birthday','slide-award','slide-meal','slide-notice','slide-game','slide-images'].forEach(k=>{
+      const el = document.getElementById('t-'+k);
+      if(el) el.checked = t[k] !== undefined ? t[k] : true;
+    });
+    lss('rw_toggles', JSON.stringify(t));
+  });
+}
+
+function saveToggles(){
+  const t = {};
+  ['slide-birthday','slide-award','slide-meal','slide-notice','slide-game','slide-images'].forEach(k=>{
+    const el = document.getElementById('t-'+k);
+    if(el) t[k] = el.checked;
+  });
+  lss('rw_toggles', JSON.stringify(t));
+  db.ref('rw/toggles').set(t);
+  // 즉시 반영
+  setupSlides();
+}
 
 function saveGame(){
   const data = {
@@ -990,7 +1146,7 @@ function showPage(page){
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById(page).classList.add('active');
   document.getElementById('btn-'+page).classList.add('active');
-  if(page==='admin'){ renderAllLists(); loadFonts(); loadLabels(); loadFontSizes(); loadGame(); const dur=parseInt(ls('rw_duration'))||8; document.getElementById('slide-duration').value=dur; document.getElementById('duration-display').textContent=dur; }
+  if(page==='admin'){ renderAllLists(); loadFonts(); loadLabels(); loadFontSizes(); loadGame(); renderImagesList(); loadToggles(); const dur=parseInt(ls('rw_duration'))||8; document.getElementById('slide-duration').value=dur; document.getElementById('duration-display').textContent=dur; }
   if(page==='board'){
     document.body.classList.add('board-mode');
     renderBoard();
@@ -1595,6 +1751,54 @@ function stopGameSlide(){
   if(media) media.innerHTML = '';
 }
 
+var imagesTimer = null;
+var imagesIdxTimer = null;
+var currentImageIdx = 0;
+function startImagesSlide(){
+  const imgs = JSON.parse(ls('rw_images')||'[]');
+  const container = document.getElementById('images-media');
+  if(!imgs.length){
+    container.innerHTML = '<div class="images-empty">등록된 이미지가 없어요</div>';
+    clearTimeout(slideTimer); clearInterval(slideTimer); clearInterval(progressTimer);
+    slideTimer = setTimeout(nextSlide, 3000);
+    return;
+  }
+  // 각 이미지를 img 태그로 렌더링
+  container.innerHTML = imgs.map((im,i)=>'<img src="'+im.src+'" class="'+(i===0?'active':'')+'" data-i="'+i+'">').join('');
+  currentImageIdx = 0;
+  // 전체 슬라이드 체류 시간 = 모든 이미지 duration 합
+  const totalTime = imgs.reduce((s,im)=>s+(parseInt(im.duration)||5)*1000, 0);
+  clearTimeout(slideTimer); clearInterval(slideTimer); clearInterval(progressTimer);
+  clearTimeout(imagesIdxTimer);
+  const start = Date.now();
+  progressTimer = setInterval(()=>{
+    const pct = Math.min((Date.now()-start)/totalTime*100, 100);
+    document.getElementById('progress-bar').style.width = pct+'%';
+  }, 50);
+  // 이미지 순환
+  function showNextImage(){
+    const imgEls = container.querySelectorAll('img');
+    imgEls.forEach(el=>el.classList.remove('active'));
+    if(imgEls[currentImageIdx]) imgEls[currentImageIdx].classList.add('active');
+    const dur = (parseInt(imgs[currentImageIdx].duration)||5)*1000;
+    currentImageIdx++;
+    if(currentImageIdx < imgs.length){
+      imagesIdxTimer = setTimeout(showNextImage, dur);
+    }
+  }
+  showNextImage();
+  slideTimer = setTimeout(()=>{
+    clearInterval(progressTimer);
+    stopImagesSlide();
+    nextSlide();
+  }, totalTime);
+}
+function stopImagesSlide(){
+  clearTimeout(imagesIdxTimer);
+  const c = document.getElementById('images-media');
+  if(c) c.innerHTML = '';
+}
+
 function renderBoard(){
   const birthday=load('birthday'), award=load('award'), meal=load('meal'), notice=load('notice');
   const labels=Object.assign({},DEFAULT_LABELS,JSON.parse(ls('rw_labels')||'{}'));
@@ -1737,18 +1941,23 @@ function startAwardCycle(){
   }
 }
 
-const ALL_SLIDE_IDS=['slide-birthday','slide-award','slide-meal','slide-notice','slide-game'];
+const ALL_SLIDE_IDS=['slide-birthday','slide-award','slide-meal','slide-notice','slide-game','slide-images'];
 // SLIDE_DURATION은 전역 변수로 선언됨
 let currentSlide=0, slideTimer, progressTimer;
 
 function getActiveSlideIDs(){
   const h = new Date().getHours();
-  const isMealTime = h >= 8 && h < 15; // 오전 8시 ~ 오후 3시
+  const isMealTime = h >= 8 && h < 15;
   const game = JSON.parse(ls('rw_game')||'{}');
-  const gameEnabled = game && game.enabled && (game.youtube || game.video);
+  const gameMediaExists = game && (game.youtube || game.video);
+  const imgs = JSON.parse(ls('rw_images')||'[]');
+  const toggles = JSON.parse(ls('rw_toggles')||'{}');
+  const def = (k) => toggles[k] !== undefined ? toggles[k] : true; // 기본은 ON
   return ALL_SLIDE_IDS.filter(id => {
+    if(!def(id)) return false; // 사용자가 OFF한 슬라이드는 제외
     if(id === 'slide-meal') return isMealTime;
-    if(id === 'slide-game') return gameEnabled;
+    if(id === 'slide-game') return gameMediaExists; // (game.enabled는 toggles로 대체)
+    if(id === 'slide-images') return imgs.length > 0;
     return true;
   });
 }
@@ -1779,13 +1988,18 @@ function goSlide(idx){
   document.getElementById(SLIDE_IDS[idx]).classList.add('active');
   document.querySelectorAll('.indicator')[idx]?.classList.add('active');
   currentSlide=idx;
-  // 수상 슬라이드 진입 시: startAwardCycle이 타이머 관리 (startSlideTimer 호출 안함)
+  // 슬라이드 진입 시 처리
   if(SLIDE_IDS[idx]==='slide-award'){
+    stopGameSlide(); stopImagesSlide();
     startAwardCycle();
   } else if(SLIDE_IDS[idx]==='slide-game'){
+    stopImagesSlide();
     startGameSlide();
-  } else {
+  } else if(SLIDE_IDS[idx]==='slide-images'){
     stopGameSlide();
+    startImagesSlide();
+  } else {
+    stopGameSlide(); stopImagesSlide();
     startSlideTimer();
   }
 }
@@ -1815,7 +2029,7 @@ db.ref('rw/durations').on('value', snap=>{
   }
 });
 
-['birthday','award','meal','notice','meal_schedule','game'].forEach(key => {
+['birthday','award','meal','notice','meal_schedule','game','images','toggles'].forEach(key => {
   db.ref('rw/'+key).on('value', snap => {
     const val = snap.val();
     if(val !== null){
