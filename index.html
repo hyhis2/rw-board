@@ -209,22 +209,14 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);}
 }
 
 /* ========== 공지 슬라이드 ========== */
-.slide-game{background:#0a0a0a;}
-.game-container{
-  position:absolute;inset:0;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;padding:2vw;
-}
-.game-title{
-  font-family:var(--font-header);font-size:3vw;color:#FFD700;
-  text-shadow:0 0 20px rgba(255,215,0,0.5);margin-bottom:2vw;
-}
+.slide-game{background:#000;}
 .game-media{
-  width:90%;height:80%;display:flex;align-items:center;justify-content:center;
-  background:#000;border-radius:12px;overflow:hidden;
-  box-shadow:0 8px 40px rgba(255,215,0,0.3);
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  background:#000;overflow:hidden;
 }
 .game-media iframe,.game-media video{
-  width:100%;height:100%;border:0;display:block;
+  width:100%;height:100%;border:0;display:block;object-fit:cover;
 }
 .game-empty{color:#888;font-size:1.5vw;}
 
@@ -421,10 +413,7 @@ body.board-mode .nav-logo{display:none;}
 
     <!-- 게임 -->
     <div class="slide slide-game" id="slide-game">
-      <div class="game-container" id="game-container">
-        <div class="game-title" id="game-title">🎮 GAME TIME</div>
-        <div class="game-media" id="game-media"></div>
-      </div>
+      <div class="game-media" id="game-media"></div>
     </div>
 
   </div>
@@ -577,8 +566,7 @@ body.board-mode .nav-logo{display:none;}
             <option value="false">OFF</option>
           </select>
         </div>
-        <div class="form-group"><label>슬라이드 제목</label><input type="text" id="g-title" placeholder="🎮 GAME TIME"></div>
-        <div class="form-group" style="max-width:120px;"><label>재생 시간(초)</label><input type="number" id="g-duration" value="30" min="5" max="300"></div>
+        <div class="form-group" style="max-width:160px;"><label>재생 시간(초)</label><input type="number" id="g-duration" value="30" min="5" max="300"></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label>YouTube 링크</label><input type="text" id="g-youtube" placeholder="https://www.youtube.com/watch?v=..."></div>
@@ -789,7 +777,6 @@ let adminUnlocked = false, pickerMode = null, pickerSelected = null;
 function saveGame(){
   const data = {
     enabled: document.getElementById('g-enabled').value === 'true',
-    title: document.getElementById('g-title').value.trim() || '🎮 GAME TIME',
     duration: parseInt(document.getElementById('g-duration').value) || 30,
     youtube: document.getElementById('g-youtube').value.trim(),
     video: JSON.parse(ls('rw_game')||'{}').video || ''
@@ -805,7 +792,6 @@ function loadGame(){
     if(!data) return;
     lss('rw_game', JSON.stringify(data));
     const e = document.getElementById('g-enabled'); if(e) e.value = data.enabled ? 'true' : 'false';
-    const t = document.getElementById('g-title'); if(t) t.value = data.title || '';
     const d = document.getElementById('g-duration'); if(d) d.value = data.duration || 30;
     const y = document.getElementById('g-youtube'); if(y) y.value = data.youtube || '';
     const s = document.getElementById('g-video-status'); if(s) s.textContent = data.video ? '✓ 동영상 파일 저장됨' : '';
@@ -1581,9 +1567,6 @@ function renderAllLists(){ renderBirthdayList(); renderAwardList(); renderMealLi
 function startGameSlide(){
   const game = JSON.parse(ls('rw_game')||'{}');
   const media = document.getElementById('game-media');
-  const title = document.getElementById('game-title');
-  if(game.title) title.textContent = game.title;
-  else title.textContent = '🎮 GAME TIME';
   const duration = (parseInt(game.duration)||30) * 1000;
   if(game.youtube){
     // YouTube URL을 임베드 URL로 변환
