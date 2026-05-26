@@ -874,18 +874,17 @@ function saveLabels(){
 // 속도
 function saveDuration(){
   const v=parseInt(document.getElementById('slide-duration').value)||8;
-  const _awDur = parseInt(ls('rw_award_duration')||'10');
-  const _awEl = document.getElementById('award-duration');
-  if(_awEl){ _awEl.value = _awDur; }
-  const _awDsp = document.getElementById('award-duration-display');
-  if(_awDsp){ _awDsp.textContent = _awDur; }
-  lss('rw_duration',v); document.getElementById('duration-display').textContent=v;
-  SLIDE_DURATION=v*1000; startSlideTimer();
   const av=parseInt(document.getElementById('award-duration').value)||10;
+  lss('rw_duration',v);
   lss('rw_award_duration',av);
+  document.getElementById('duration-display').textContent=v;
   const adEl=document.getElementById('award-duration-display');
   if(adEl) adEl.textContent=av;
+  SLIDE_DURATION=v*1000;
   AWARD_DURATION=av*1000;
+  // Firebase에도 저장 (다른 기기 동기화)
+  db.ref('rw/durations').set({slide:v, award:av});
+  startSlideTimer();
   if(getActiveSlideIDs()[currentSlide]==='slide-award') startAwardCycle();
   alert(`슬라이드 ${v}초 / 수상자 ${av}초로 변경됐어요! ✅`);
 }
@@ -1667,6 +1666,21 @@ function renderBoardDisplay(){
 loadFonts(); loadLabels();
 
 // Firebase 실시간 리스너 (전광판 자동 반영)
+// durations 동기화
+db.ref('rw/durations').on('value', snap=>{
+  const d = snap.val();
+  if(d){
+    if(d.slide){ lss('rw_duration', d.slide); SLIDE_DURATION = d.slide*1000;
+      const el=document.getElementById('slide-duration'); if(el) el.value=d.slide;
+      const dsp=document.getElementById('duration-display'); if(dsp) dsp.textContent=d.slide;
+    }
+    if(d.award){ lss('rw_award_duration', d.award); AWARD_DURATION = d.award*1000;
+      const el=document.getElementById('award-duration'); if(el) el.value=d.award;
+      const dsp=document.getElementById('award-duration-display'); if(dsp) dsp.textContent=d.award;
+    }
+  }
+});
+
 ['birthday','award','meal','notice','meal_schedule'].forEach(key => {
   db.ref('rw/'+key).on('value', snap => {
     const val = snap.val();
