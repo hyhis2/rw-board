@@ -209,6 +209,25 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);}
 }
 
 /* ========== 공지 슬라이드 ========== */
+.slide-game{background:#0a0a0a;}
+.game-container{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;padding:2vw;
+}
+.game-title{
+  font-family:var(--font-header);font-size:3vw;color:#FFD700;
+  text-shadow:0 0 20px rgba(255,215,0,0.5);margin-bottom:2vw;
+}
+.game-media{
+  width:90%;height:80%;display:flex;align-items:center;justify-content:center;
+  background:#000;border-radius:12px;overflow:hidden;
+  box-shadow:0 8px 40px rgba(255,215,0,0.3);
+}
+.game-media iframe,.game-media video{
+  width:100%;height:100%;border:0;display:block;
+}
+.game-empty{color:#888;font-size:1.5vw;}
+
 .slide-notice .slide-bg{
   background-image:var(--bg-notice);
   background-position:center center;
@@ -400,6 +419,14 @@ body.board-mode .nav-logo{display:none;}
       </div>
     </div>
 
+    <!-- 게임 -->
+    <div class="slide slide-game" id="slide-game">
+      <div class="game-container" id="game-container">
+        <div class="game-title" id="game-title">🎮 GAME TIME</div>
+        <div class="game-media" id="game-media"></div>
+      </div>
+    </div>
+
   </div>
 
   <div class="slide-indicators" id="indicators"></div>
@@ -537,6 +564,34 @@ body.board-mode .nav-logo{display:none;}
       </div>
       <button class="btn btn-primary" onclick="addNotice()">+ 추가</button>
       <div class="item-list" id="notice-list"></div>
+    </div>
+
+    <div class="admin-section">
+      <div class="admin-section-title">🎮 게임 영상</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">YouTube 링크 또는 동영상 파일을 등록하면 자동 전환 슬라이드에 추가됩니다.</div>
+      <div class="form-row">
+        <div class="form-group" style="max-width:120px;">
+          <label>활성화</label>
+          <select id="g-enabled">
+            <option value="true">ON</option>
+            <option value="false">OFF</option>
+          </select>
+        </div>
+        <div class="form-group"><label>슬라이드 제목</label><input type="text" id="g-title" placeholder="🎮 GAME TIME"></div>
+        <div class="form-group" style="max-width:120px;"><label>재생 시간(초)</label><input type="number" id="g-duration" value="30" min="5" max="300"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>YouTube 링크</label><input type="text" id="g-youtube" placeholder="https://www.youtube.com/watch?v=..."></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>또는 동영상 파일 업로드 (mp4, webm)</label>
+          <input type="file" id="g-video-file" accept="video/*" onchange="uploadGameVideo(this)">
+          <div id="g-video-status" style="font-size:11px;color:var(--muted);margin-top:4px;"></div>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="saveGame()">💾 저장</button>
+      <button class="btn btn-sm btn-danger" onclick="clearGameVideo()" style="margin-left:8px;">동영상 삭제</button>
     </div>
   </div>
 
@@ -731,6 +786,59 @@ const DEFAULT_PW = "123";
 let ADMIN_PW = ls('rw_admin_pw') || DEFAULT_PW;
 let adminUnlocked = false, pickerMode = null, pickerSelected = null;
 
+function saveGame(){
+  const data = {
+    enabled: document.getElementById('g-enabled').value === 'true',
+    title: document.getElementById('g-title').value.trim() || '🎮 GAME TIME',
+    duration: parseInt(document.getElementById('g-duration').value) || 30,
+    youtube: document.getElementById('g-youtube').value.trim(),
+    video: JSON.parse(ls('rw_game')||'{}').video || ''
+  };
+  lss('rw_game', JSON.stringify(data));
+  db.ref('rw/game').set(data);
+  alert('게임 영상 설정이 저장되었어요! ✅');
+}
+
+function loadGame(){
+  db.ref('rw/game').once('value').then(snap=>{
+    const data = snap.val() || JSON.parse(ls('rw_game')||'{}');
+    if(!data) return;
+    lss('rw_game', JSON.stringify(data));
+    const e = document.getElementById('g-enabled'); if(e) e.value = data.enabled ? 'true' : 'false';
+    const t = document.getElementById('g-title'); if(t) t.value = data.title || '';
+    const d = document.getElementById('g-duration'); if(d) d.value = data.duration || 30;
+    const y = document.getElementById('g-youtube'); if(y) y.value = data.youtube || '';
+    const s = document.getElementById('g-video-status'); if(s) s.textContent = data.video ? '✓ 동영상 파일 저장됨' : '';
+  });
+}
+
+function uploadGameVideo(input){
+  const file = input.files[0];
+  if(!file) return;
+  if(file.size > 5*1024*1024){
+    alert('파일이 너무 큽니다! 5MB 이하 권장 (Firebase 무료 한도 때문)\nYouTube 링크를 추천드려요.');
+    input.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const data = JSON.parse(ls('rw_game')||'{}');
+    data.video = e.target.result;
+    lss('rw_game', JSON.stringify(data));
+    document.getElementById('g-video-status').textContent = '✓ 업로드 완료 (저장 버튼 눌러주세요)';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearGameVideo(){
+  const data = JSON.parse(ls('rw_game')||'{}');
+  data.video = '';
+  lss('rw_game', JSON.stringify(data));
+  document.getElementById('g-video-status').textContent = '';
+  db.ref('rw/game').set(data);
+  alert('동영상이 삭제되었어요.');
+}
+
 function ls(k){ return localStorage.getItem(k); }
 function lss(k,v){ localStorage.setItem(k,v); }
 function load(k){ return JSON.parse(ls('rw_'+k)||'[]'); }
@@ -896,7 +1004,7 @@ function showPage(page){
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById(page).classList.add('active');
   document.getElementById('btn-'+page).classList.add('active');
-  if(page==='admin'){ renderAllLists(); loadFonts(); loadLabels(); loadFontSizes(); const dur=parseInt(ls('rw_duration'))||8; document.getElementById('slide-duration').value=dur; document.getElementById('duration-display').textContent=dur; }
+  if(page==='admin'){ renderAllLists(); loadFonts(); loadLabels(); loadFontSizes(); loadGame(); const dur=parseInt(ls('rw_duration'))||8; document.getElementById('slide-duration').value=dur; document.getElementById('duration-display').textContent=dur; }
   if(page==='board'){
     document.body.classList.add('board-mode');
     renderBoard();
@@ -1470,6 +1578,40 @@ function saveEditNotice(i){
 function renderAllLists(){ renderBirthdayList(); renderAwardList(); renderMealList(); renderNoticeList(); }
 
 // ===== 전광판 렌더 =====
+function startGameSlide(){
+  const game = JSON.parse(ls('rw_game')||'{}');
+  const media = document.getElementById('game-media');
+  const title = document.getElementById('game-title');
+  if(game.title) title.textContent = game.title;
+  else title.textContent = '🎮 GAME TIME';
+  const duration = (parseInt(game.duration)||30) * 1000;
+  if(game.youtube){
+    // YouTube URL을 임베드 URL로 변환
+    let ytId = '';
+    const m1 = game.youtube.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\?\s]+)/);
+    if(m1) ytId = m1[1];
+    else ytId = game.youtube.trim();
+    media.innerHTML = '<iframe src="https://www.youtube.com/embed/'+ytId+'?autoplay=1&mute=1&controls=0&loop=1&playlist='+ytId+'" allow="autoplay; encrypted-media" allowfullscreen></iframe>';
+  } else if(game.video){
+    media.innerHTML = '<video src="'+game.video+'" autoplay muted loop playsinline></video>';
+  } else {
+    media.innerHTML = '<div class="game-empty">게임 영상이 설정되지 않았어요</div>';
+  }
+  // 시간 지나면 다음 슬라이드로
+  clearTimeout(slideTimer); clearInterval(slideTimer); clearInterval(progressTimer);
+  const start = Date.now();
+  progressTimer = setInterval(()=>{
+    const pct = Math.min((Date.now()-start)/duration*100, 100);
+    document.getElementById('progress-bar').style.width = pct+'%';
+  }, 50);
+  slideTimer = setTimeout(()=>{ clearInterval(progressTimer); stopGameSlide(); nextSlide(); }, duration);
+}
+
+function stopGameSlide(){
+  const media = document.getElementById('game-media');
+  if(media) media.innerHTML = '';
+}
+
 function renderBoard(){
   const birthday=load('birthday'), award=load('award'), meal=load('meal'), notice=load('notice');
   const labels=Object.assign({},DEFAULT_LABELS,JSON.parse(ls('rw_labels')||'{}'));
@@ -1612,14 +1754,20 @@ function startAwardCycle(){
   }
 }
 
-const ALL_SLIDE_IDS=['slide-birthday','slide-award','slide-meal','slide-notice'];
+const ALL_SLIDE_IDS=['slide-birthday','slide-award','slide-meal','slide-notice','slide-game'];
 // SLIDE_DURATION은 전역 변수로 선언됨
 let currentSlide=0, slideTimer, progressTimer;
 
 function getActiveSlideIDs(){
   const h = new Date().getHours();
   const isMealTime = h >= 8 && h < 15; // 오전 8시 ~ 오후 3시
-  return ALL_SLIDE_IDS.filter(id => id !== 'slide-meal' || isMealTime);
+  const game = JSON.parse(ls('rw_game')||'{}');
+  const gameEnabled = game && game.enabled && (game.youtube || game.video);
+  return ALL_SLIDE_IDS.filter(id => {
+    if(id === 'slide-meal') return isMealTime;
+    if(id === 'slide-game') return gameEnabled;
+    return true;
+  });
 }
 
 function setupSlides(){
@@ -1651,7 +1799,10 @@ function goSlide(idx){
   // 수상 슬라이드 진입 시: startAwardCycle이 타이머 관리 (startSlideTimer 호출 안함)
   if(SLIDE_IDS[idx]==='slide-award'){
     startAwardCycle();
+  } else if(SLIDE_IDS[idx]==='slide-game'){
+    startGameSlide();
   } else {
+    stopGameSlide();
     startSlideTimer();
   }
 }
@@ -1681,7 +1832,7 @@ db.ref('rw/durations').on('value', snap=>{
   }
 });
 
-['birthday','award','meal','notice','meal_schedule'].forEach(key => {
+['birthday','award','meal','notice','meal_schedule','game'].forEach(key => {
   db.ref('rw/'+key).on('value', snap => {
     const val = snap.val();
     if(val !== null){
