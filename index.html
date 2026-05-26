@@ -1760,7 +1760,7 @@ function startGameSlide(){
     const m1 = game.youtube.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\?\s]+)/);
     if(m1) ytId = m1[1];
     else ytId = game.youtube.trim();
-    media.innerHTML = '<iframe src="https://www.youtube.com/embed/'+ytId+'?autoplay=1&mute=1&controls=0&loop=1&playlist='+ytId+'" allow="autoplay; encrypted-media" allowfullscreen></iframe>';
+    media.innerHTML = '<iframe src="https://www.youtube.com/embed/'+ytId+'?autoplay=1&mute=1&controls=0&loop=1&playlist='+ytId+'&vq=hd1080&hd=1&modestbranding=1&rel=0&iv_load_policy=3" allow="autoplay; encrypted-media" allowfullscreen></iframe>';
   } else if(game.video){
     media.innerHTML = '<video src="'+game.video+'" autoplay muted loop playsinline></video>';
   } else {
