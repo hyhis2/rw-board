@@ -217,9 +217,9 @@ body{font-family:var(--font-body);background:var(--cream);color:var(--dark);}
 .game-media iframe{
   position:absolute;
   top:50%;left:50%;transform:translate(-50%,-50%);
-  /* 16:9 비율로 화면보다 살짝 크게 → 1080p 강제 트리거 */
-  width:120vw;height:67.5vw;
-  min-width:1920px;min-height:1080px;
+  /* 16:9 비율 유지하며 화면에 꽉 맞게 + 1080p 보장 */
+  width:100vw;height:56.25vw;        /* 100vw의 16:9 비율 */
+  min-width:177.78vh;min-height:100vh; /* 세로 부족할 땐 세로 기준으로 */
   border:0;display:block;
   pointer-events:none;
 }
